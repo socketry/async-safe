@@ -61,8 +61,14 @@ module Async
 			#
 			# This activates a TracePoint that tracks object access across fibers and threads.
 			# There is no performance overhead when monitoring is disabled.
-			def enable!
-				@monitor ||= Monitor.new
+			#
+			# @parameter logger [Object | Nil] Optional logger to use for violations instead of raising exceptions.
+			def enable!(logger: nil)
+				if @monitor
+					raise "Async::Safe is already enabled!"
+				end
+				
+				@monitor = Monitor.new(logger: logger)
 				@monitor.enable!
 			end
 			

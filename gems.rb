@@ -21,12 +21,13 @@ group :test do
 	gem "sus"
 	gem "covered"
 	gem "decode"
-	
+		
 	gem "rubocop"
 	gem "rubocop-md"
 	gem "rubocop-socketry"
 	
 	gem "sus-fixtures-async"
+	gem "sus-fixtures-console"
 	
 	gem "bake-test"
 	gem "bake-test-external"
