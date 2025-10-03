@@ -25,7 +25,7 @@ Async::Safe.enable!
 
 When a violation is detected, an `Async::Safe::ViolationError` will be raised immediately with details about the object, method, and execution contexts involved.
 
-## Single-Owner Model
+### Single-Owner Model
 
 By default, all objects are assumed to follow a **single-owner model** - they should only be accessed from one fiber/thread at a time:
 
@@ -51,7 +51,7 @@ Fiber.schedule do
 end
 ~~~
 
-## Marking Async-Safe Classes
+### Marking Async-Safe Classes
 
 Mark entire classes as safe for concurrent access:
 
@@ -90,7 +90,7 @@ class MyQueue
 end
 ~~~
 
-## Marking Async-Safe Methods
+### Marking Async-Safe Methods
 
 Mark specific methods as async-safe:
 
@@ -122,7 +122,7 @@ Fiber.schedule do
 end
 ~~~
 
-## Transferring Ownership
+### Transferring Ownership
 
 Explicitly transfer ownership between fibers:
 
