@@ -16,11 +16,20 @@ Enable it in your tests to get immediate feedback when objects are incorrectly s
 
 Please see the [project documentation](https://socketry.github.io/async-safe/) for more details.
 
-  - [Getting Started](https://socketry.github.io/async-safe/guides/getting-started/index) - This guide explains how to use `async-safe` to detect thread safety violations.
+  - [Getting Started](https://socketry.github.io/async-safe/guides/getting-started/index) - This guide explains how to use `async-safe` to detect thread safety violations in your Ruby code.
 
 ## Releases
 
-There are no documented releases.
+Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
+
+### v0.1.0
+
+  - Implement TracePoint-based ownership tracking.
+  - Add `Async::Safe::Concurrent` module for marking thread-safe classes.
+  - Add `thread_safe` class method for marking thread-safe methods.
+  - Add `Async::Safe.transfer` for explicit ownership transfer
+  - Add violation detection and reporting
+  - Zero overhead when monitoring is disabled
 
 ## See Also
 
