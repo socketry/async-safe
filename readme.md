@@ -22,6 +22,11 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
 Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
 
+### v0.2.0
+
+  - `Thread::Queue` transfers ownership of objects popped from it.
+  - Add support for `logger:` option in `Async::Safe.enable!` which logs violations instead of raising errors.
+
 ### v0.1.0
 
   - Implement TracePoint-based ownership tracking.

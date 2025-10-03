@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.2.0
 
   - `Thread::Queue` transfers ownership of objects popped from it.
   - Add support for `logger:` option in `Async::Safe.enable!` which logs violations instead of raising errors.
