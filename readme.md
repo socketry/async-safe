@@ -16,6 +16,15 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
   - [Getting Started](https://socketry.github.io/async-safe/guides/getting-started/index) - This guide explains how to use `async-safe` to detect thread safety violations.
 
+## Releases
+
+There are no documented releases.
+
+## See Also
+
+  - [async](https://github.com/socketry/async) - Composable asynchronous I/O for Ruby.
+  - [Thread Safety Guide](https://github.com/socketry/async/blob/main/.context/async/thread-safety.md) - Best practices for concurrent Ruby code.
+
 ## Contributing
 
 We welcome contributions to this project.
@@ -33,8 +42,3 @@ In order to protect users of this project, we require all contributors to comply
 ### Community Guidelines
 
 This project is best served by a collaborative and respectful environment. Treat each other professionally, respect differing viewpoints, and engage constructively. Harassment, discrimination, or harmful behavior is not tolerated. Communicate clearly, listen actively, and support one another. If any issues arise, please inform the project maintainers.
-
-## See Also
-
-  - [async](https://github.com/socketry/async) - Composable asynchronous I/O for Ruby.
-  - [Thread Safety Guide](https://github.com/socketry/async/blob/main/.context/async/thread-safety.md) - Best practices for concurrent Ruby code.
