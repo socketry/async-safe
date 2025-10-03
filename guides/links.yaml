@@ -1,0 +1,9 @@
+links:
+  - title: Async
+    href: https://github.com/socketry/async
+    description: Composable asynchronous I/O for Ruby
+  
+  - title: Thread Safety Guide
+    href: https://github.com/socketry/async/blob/main/.context/async/thread-safety.md
+    description: Best practices for concurrent Ruby code
+
