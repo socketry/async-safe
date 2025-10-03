@@ -30,6 +30,9 @@ module Async
 		# Objects of this class can now be safely accessed from multiple fibers
 		# without triggering violations.
 		module Concurrent
+			# Set the ASYNC_SAFE constant when this module is included.
+			#
+			# @parameter base [Class] The class including this module.
 			def self.included(base)
 				base.const_set(:ASYNC_SAFE, true) unless base.const_defined?(:ASYNC_SAFE)
 			end

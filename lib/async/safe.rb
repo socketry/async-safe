@@ -9,17 +9,13 @@ require_relative "safe/concurrent"
 require_relative "safe/monitor"
 require_relative "safe/builtins"
 
+# @namespace
 module Async
 	# Provides runtime thread safety monitoring for concurrent Ruby code.
-	#
-	# This module implements a TracePoint-based ownership tracking system that detects
-	# when objects are accessed from multiple fibers or threads without proper synchronization.
 	#
 	# By default, all objects follow a **single-owner model** - they should only be accessed
 	# from one fiber/thread at a time. Objects or methods can be explicitly marked as
 	# async-safe to allow concurrent access.
-	#
-	# Please see the {file:guides/getting-started/readme.md Getting Started} guide for more details.
 	module Safe
 		# Include this module to mark specific methods as async-safe
 		def self.included(base)
