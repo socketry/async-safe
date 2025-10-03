@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - `Thread::Queue` transfers ownership of objects popped from it.
+
 ## v0.1.0
 
   - Implement TracePoint-based ownership tracking.

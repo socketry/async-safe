@@ -20,3 +20,30 @@ Fiber::ASYNC_SAFE = true
 
 # ObjectSpace::WeakMap is async-safe:
 ObjectSpace::WeakMap::ASYNC_SAFE = true
+
+module Async
+	module Safe
+		module TransferableThreadQueue
+			def pop(...)
+				object = super(...)
+				Async::Safe.transfer(object)
+				object
+			end
+			
+			def deq(...)
+				object = super(...)
+				Async::Safe.transfer(object)
+				object
+			end
+			
+			def shift(...)
+				object = super(...)
+				Async::Safe.transfer(object)
+				object
+			end
+		end
+	end
+end
+
+Thread::Queue.prepend(Async::Safe::TransferableThreadQueue)
+Thread::SizedQueue.prepend(Async::Safe::TransferableThreadQueue)
