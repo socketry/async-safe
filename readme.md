@@ -8,7 +8,9 @@ This gem provides a TracePoint-based ownership tracking system that detects when
 
 ## Motivation
 
-Ruby's fiber-based concurrency (via `async`) requires careful attention to object ownership. This gem helps you catch violations of the single-owner model during development, before they cause production issues.
+Ruby's fiber-based concurrency (via `async`) requires careful attention to object ownership. This gem helps you catch violations of the single-owner model in your test suite, preventing concurrency bugs from reaching production.
+
+Enable it in your tests to get immediate feedback when objects are incorrectly shared across fibers.
 
 ## Usage
 

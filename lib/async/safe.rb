@@ -15,6 +15,8 @@ module Async
 	# By default, all objects follow a **single-owner model** - they should only be accessed
 	# from one fiber/thread at a time. Objects or methods can be explicitly marked as
 	# async-safe to allow concurrent access.
+	#
+	# Enable monitoring in your test suite to catch concurrency bugs early.
 	module Safe
 		# Include this module to mark specific methods as async-safe
 		def self.included(base)

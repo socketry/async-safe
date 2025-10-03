@@ -4,25 +4,13 @@ This guide explains how to use `async-safe` to detect thread safety violations i
 
 ## Installation
 
-Add this line to your application's Gemfile:
-
-~~~ ruby
-gem 'async-safe'
-~~~
-
-And then execute:
+Add the gem to your project:
 
 ~~~ bash
-$ bundle install
+$ bundle add async-safe
 ~~~
 
-Or install it yourself as:
-
-~~~ bash
-$ gem install async-safe
-~~~
-
-## Basic Monitoring
+## Usage
 
 Enable monitoring in your test suite or development environment:
 
@@ -37,7 +25,7 @@ Async::Safe.enable!
 
 When a violation is detected, an `Async::Safe::ViolationError` will be raised immediately with details about the object, method, and execution contexts involved.
 
-## Single-Owner Model (Default)
+## Single-Owner Model
 
 By default, all objects are assumed to follow a **single-owner model** - they should only be accessed from one fiber/thread at a time:
 
@@ -153,39 +141,36 @@ end
 Add to your test helper (e.g., `config/sus.rb` or `spec/spec_helper.rb`):
 
 ~~~ ruby
-if ENV['SAFETY_CHECK']
-  require 'async/safe'
-  
-  Async::Safe.enable!
-end
+require 'async/safe'
+
+Async::Safe.enable!
 ~~~
 
-Then run your tests with:
+Then run your tests normally:
 
 ~~~ bash
-$ SAFETY_CHECK=1 bundle exec sus
+$ bundle exec sus
 ~~~
 
-Any thread safety violations will cause your tests to fail immediately with a clear error message showing which object was accessed incorrectly and from which execution contexts.
+Any thread safety violations will cause your tests to fail immediately with a clear error message showing which object was accessed incorrectly and from which fibers.
 
 ## How It Works
 
-1. **Default Assumption**: All objects follow a single-owner model (not thread-safe)
-2. **TracePoint Monitoring**: Tracks which fiber/thread first accesses each object
-3. **Violation Detection**: Raises an exception when a different fiber/thread accesses the same object
-4. **Explicit Safety**: Objects/methods can be marked as thread-safe to allow concurrent access
-5. **Zero Overhead**: Monitoring is only active when explicitly enabled
+1. **Default Assumption**: All objects follow a single-owner model (not thread-safe).
+2. **TracePoint Monitoring**: Tracks which fiber/thread first accesses each object.
+3. **Violation Detection**: Raises an exception when a different fiber/thread accesses the same object.
+4. **Explicit Safety**: Objects/methods can be marked as thread-safe to allow concurrent access.
+5. **Zero Overhead**: Monitoring is only active when explicitly enabled.
 
 ## Use Cases
 
-- **Detecting concurrency bugs** in development and testing
-- **Validating thread safety assumptions** in async/fiber-based code
-- **Finding race conditions** before they cause production issues
-- **Educational tool** for learning about thread safety in Ruby
+- **Detecting concurrency bugs** in development and testing.
+- **Validating thread safety assumptions** in async/fiber-based code.
+- **Finding race conditions** before they cause production issues.
+- **Educational tool** for learning about thread safety in Ruby.
 
 ## Performance
 
-- **Zero overhead when disabled** - TracePoint is not activated
-- **Minimal overhead when enabled** - suitable for development/test environments
-- **Not recommended for production** - use only in development/testing
-
+- **Zero overhead when disabled** - TracePoint is not activated.
+- **Minimal overhead when enabled** - suitable for development/test environments.
+- **Not recommended for production** - use only in development/testing.
