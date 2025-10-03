@@ -5,7 +5,6 @@
 
 require_relative "safe/version"
 require_relative "safe/class"
-require_relative "safe/concurrent"
 require_relative "safe/monitor"
 require_relative "safe/builtins"
 
@@ -52,12 +51,7 @@ module Async
 			end
 		end
 		
-		# Global monitor instance
-		@monitor = Monitor.new
-		
 		class << self
-			ASYNC_SAFE = true
-			
 			# @attribute [Monitor] The global monitoring instance.
 			attr_reader :monitor
 			
@@ -66,19 +60,14 @@ module Async
 			# This activates a TracePoint that tracks object access across fibers and threads.
 			# There is no performance overhead when monitoring is disabled.
 			def enable!
+				@monitor ||= Monitor.new
 				@monitor.enable!
 			end
 			
 			# Disable thread safety monitoring.
 			def disable!
-				@monitor.disable!
-			end
-			
-			# Reset all tracked ownership.
-			#
-			# Useful for resetting state between test runs.
-			def reset!
-				@monitor.reset!
+				@monitor&.disable!
+				@monitor = nil
 			end
 			
 			# Explicitly transfer ownership of objects to the current fiber.
@@ -97,7 +86,7 @@ module Async
 			# end
 			# ~~~
 			def transfer(*objects)
-				@monitor.transfer(*objects)
+				@monitor&.transfer(*objects)
 			end
 		end
 	end

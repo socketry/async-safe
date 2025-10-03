@@ -23,7 +23,16 @@ describe Async::Safe::Monitor do
 		end
 	end
 	
-	let(:monitor) {Async::Safe.monitor}
+	let(:monitor) do
+		# Ensure monitor exists (created lazily):
+		monitor = Async::Safe.instance_variable_get(:@monitor)
+		unless monitor
+			Async::Safe.enable!
+			Async::Safe.disable!
+			monitor = Async::Safe.instance_variable_get(:@monitor) || Async::Safe::Monitor.new
+		end
+		monitor
+	end
 	
 	with "#check_access" do
 		it "records ownership on first access" do
@@ -87,7 +96,7 @@ describe Async::Safe::Monitor do
 		
 		it "allows access to objects with ASYNC_SAFE constant" do
 			safe_class = Class.new do
-				include Async::Safe::Concurrent
+				async_safe!
 				
 				def read
 					"data"

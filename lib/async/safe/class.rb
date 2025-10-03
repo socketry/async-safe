@@ -17,5 +17,12 @@ class Class
 		
 		false
 	end
+	
+	# Mark the class as async-safe or not.
+	#
+	# @parameter value [Boolean] Whether the class is async-safe.
+	# @returns [Boolean] Whether the class is async-safe.
+	def async_safe!(value = true)
+		self.const_set(:ASYNC_SAFE, value)
+	end
 end
-

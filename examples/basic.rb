@@ -42,7 +42,7 @@ end
 puts "\n2. Async-safe class (no violation):"
 
 class SafeQueue
-	include Async::Safe::Concurrent
+	async_safe!
 	
 	def initialize
 		@items = []

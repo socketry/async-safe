@@ -24,7 +24,8 @@ describe Async::Safe do
 	end
 	
 	before do
-		subject.reset!
+		# Reset monitoring state:
+		subject.disable!
 		subject.enable!
 	end
 	
@@ -54,7 +55,7 @@ describe Async::Safe do
 	
 	it "allows concurrent access to async-safe classes" do
 		queue_class = Class.new do
-			include Async::Safe::Concurrent
+			async_safe!
 			
 			def push(item)
 				@items ||= []

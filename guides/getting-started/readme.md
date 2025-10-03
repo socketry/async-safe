@@ -69,7 +69,7 @@ Mark entire classes as safe for concurrent access:
 
 ~~~ ruby
 class MyQueue
-  include Async::Safe::Concurrent
+  async_safe!
   
   def initialize
     @queue = Thread::Queue.new

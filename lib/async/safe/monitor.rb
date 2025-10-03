@@ -85,13 +85,6 @@ module Async
 				end
 			end
 			
-			# Reset all tracked ownership.
-			def reset!
-				@mutex.synchronize do
-					@owners = ObjectSpace::WeakMap.new
-				end
-			end
-			
 			# Explicitly transfer ownership of objects to the current fiber.
 			#
 			# @parameter objects [Array(Object)] The objects to transfer.
