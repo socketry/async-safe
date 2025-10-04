@@ -22,6 +22,10 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
 Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
 
+### v0.3.2
+
+  - Better error message.
+
 ### v0.3.0
 
   - Inverted default model: classes are async-safe by default, use `ASYNC_SAFE = false` to enable tracking.
