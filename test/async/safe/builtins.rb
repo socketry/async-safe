@@ -17,11 +17,14 @@ describe "Async::Safe Builtins" do
 	
 	# Simple test to verify the transfer mechanism works
 	it "can manually transfer object ownership" do
-		test_object = Class.new do
+		test_class = Class.new do
+			const_set(:ASYNC_SAFE, false)
+			
 			def process
 				"processed"
 			end
-		end.new
+		end
+		test_object = test_class.new
 		
 		# Use the object in main fiber to establish ownership
 		test_object.process

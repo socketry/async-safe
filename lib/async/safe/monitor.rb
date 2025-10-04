@@ -64,13 +64,10 @@ module Async
 			ASYNC_SAFE = true
 			
 			# Initialize a new monitor instance.
-			#
-			# @parameter logger [Object | Nil] Optional logger to use for violations instead of raising exceptions.
-			def initialize(logger: nil)
+			def initialize
 				@owners = ObjectSpace::WeakMap.new
 				@mutex = Thread::Mutex.new
 				@trace_point = nil
-				@logger = logger
 			end
 			
 			attr :owners
@@ -131,11 +128,12 @@ module Async
 					if owner = @owners[object]
 						# Violation if accessed from different fiber:
 						if owner != current
-							if @logger
-								@logger.warn(self, "Async::Safe violation detected!", klass: klass, method: method, owner: owner, current: current, backtrace: caller_locations(3..))
-							else
-								raise ViolationError.new(target: object, method: method, owner: owner, current: current)
-							end
+							raise ViolationError.new(
+								target: object,
+								method: method,
+								owner: owner,
+								current: current,
+							)
 						end
 					else
 						# First access - record owner:

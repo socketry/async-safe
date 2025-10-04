@@ -10,6 +10,8 @@ MockTracePoint = Data.define(:self, :method_id, :defined_class, :path, :lineno)
 describe Async::Safe do
 	let(:body_class) do
 		Class.new do
+			async_safe!(false)
+			
 			def initialize(chunks)
 				@chunks = chunks
 				@index = 0
@@ -24,8 +26,6 @@ describe Async::Safe do
 	end
 	
 	before do
-		# Reset monitoring state:
-		subject.disable!
 		subject.enable!
 	end
 	
@@ -56,7 +56,7 @@ describe Async::Safe do
 	it "allows concurrent access to async-safe classes" do
 		queue_class = Class.new do
 			async_safe!
-			
+
 			def push(item)
 				@items ||= []
 				@items << item
@@ -85,9 +85,7 @@ describe Async::Safe do
 	
 	it "detects violations on non-async-safe methods" do
 		mixed_class = Class.new do
-			include Async::Safe
-			
-			async_safe :safe_method
+			async_safe!(safe_method: true)
 			
 			def safe_method
 				"safe"
@@ -113,28 +111,58 @@ describe Async::Safe do
 	end
 	
 	with ".async_safe?" do
-		it "returns false for non-async-safe classes" do
+		it "returns correct values for hash-based configuration" do
 			regular_class = Class.new do
-				include Async::Safe
-				async_safe :some_method
-				
-				def some_method
-					"data"
-				end
-				
-				def other_method
-					"other"
-				end
+				async_safe!(some_method: true, other_method: false)
 			end
-			
-			# Class itself is not async-safe
-			expect(regular_class.async_safe?).to be == false
 			
 			# Marked method is async-safe
 			expect(regular_class.async_safe?(:some_method)).to be == true
 			
-			# Unmarked method is not async-safe
+			# Explicitly false method
 			expect(regular_class.async_safe?(:other_method)).to be == false
+			
+			# Method not in hash defaults to false (tracked)
+			expect(regular_class.async_safe?(:unknown_method)).to be == false
+		end
+		
+		it "returns correct values for array-based configuration" do
+			regular_class = Class.new do
+				async_safe!([:read, :inspect])
+			end
+			
+			# Methods in array are async-safe
+			expect(regular_class.async_safe?(:read)).to be == true
+			expect(regular_class.async_safe?(:inspect)).to be == true
+			
+			# Methods not in array default to false (tracked)
+			expect(regular_class.async_safe?(:write)).to be == false
+		end
+		
+		it "defaults to true when no ASYNC_SAFE constant" do
+			regular_class = Class.new
+			
+			# No constant means async-safe by default
+			expect(regular_class.async_safe?).to be == true
+			expect(regular_class.async_safe?(:any_method)).to be == true
+		end
+		
+		it "returns false for hash without method argument" do
+			regular_class = Class.new do
+				async_safe!(read: true, write: false)
+			end
+			
+			# Hash config without method returns false
+			expect(regular_class.async_safe?).to be == false
+		end
+		
+		it "returns false for array without method argument" do
+			regular_class = Class.new do
+				async_safe!([:read, :write])
+			end
+			
+			# Array config without method returns false
+			expect(regular_class.async_safe?).to be == false
 		end
 	end
 end

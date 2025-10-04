@@ -12,47 +12,12 @@ require_relative "safe/builtins"
 module Async
 	# Provides runtime thread safety monitoring for concurrent Ruby code.
 	#
-	# By default, all objects follow a **single-owner model** - they should only be accessed
-	# from one fiber/thread at a time. Objects or methods can be explicitly marked as
-	# async-safe to allow concurrent access.
+	# By default, all classes are assumed to be async-safe. Classes that follow a
+	# **single-owner model** should be explicitly marked with `ASYNC_SAFE = false` to
+	# enable tracking and violation detection.
 	#
 	# Enable monitoring in your test suite to catch concurrency bugs early.
 	module Safe
-		# Include this module to mark specific methods as async-safe
-		def self.included(base)
-			base.extend(ClassMethods)
-		end
-		
-		# Class methods for marking async-safe methods
-		module ClassMethods
-			# Mark one or more methods as async-safe.
-			#
-			# @parameter method_names [Array(Symbol)] The methods to mark as async-safe.
-			def async_safe(*method_names)
-				@async_safe_methods ||= Set.new
-				@async_safe_methods.merge(method_names)
-			end
-			
-			# Check if a method is async-safe.
-			#
-			# Overrides the default implementation from `Class` to also check method-level safety.
-			#
-			# @parameter method [Symbol | Nil] The method name to check, or nil to check if the entire class is async-safe.
-			# @returns [Boolean] Whether the method or class is async-safe.
-			def async_safe?(method = nil)
-				# Check if entire class is marked async-safe:
-				return true if super
-				
-				# Check if specific method is marked async-safe:
-				if method
-					return @async_safe_methods&.include?(method)
-				end
-				
-				# Default to false if no method is specified and the class is not async safe:
-				return false
-			end
-		end
-		
 		class << self
 			# @attribute [Monitor] The global monitoring instance.
 			attr_reader :monitor
@@ -61,14 +26,8 @@ module Async
 			#
 			# This activates a TracePoint that tracks object access across fibers and threads.
 			# There is no performance overhead when monitoring is disabled.
-			#
-			# @parameter logger [Object | Nil] Optional logger to use for violations instead of raising exceptions.
-			def enable!(logger: nil)
-				if @monitor
-					raise "Async::Safe is already enabled!"
-				end
-				
-				@monitor = Monitor.new(logger: logger)
+			def enable!
+				@monitor ||= Monitor.new
 				@monitor.enable!
 			end
 			

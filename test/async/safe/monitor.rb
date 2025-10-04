@@ -10,6 +10,8 @@ MockTracePoint = Data.define(:self, :method_id, :defined_class, :path, :lineno)
 describe Async::Safe::Monitor do
 	let(:body_class) do
 		Class.new do
+			const_set(:ASYNC_SAFE, false)
+			
 			def initialize(chunks)
 				@chunks = chunks
 				@index = 0
@@ -23,21 +25,12 @@ describe Async::Safe::Monitor do
 		end
 	end
 	
-	let(:monitor) do
-		# Ensure monitor exists (created lazily):
-		monitor = Async::Safe.instance_variable_get(:@monitor)
-		unless monitor
-			Async::Safe.enable!
-			Async::Safe.disable!
-			monitor = Async::Safe.instance_variable_get(:@monitor) || Async::Safe::Monitor.new
-		end
-		monitor
-	end
+	let(:monitor) { Async::Safe::Monitor.new }
 	
 	with "#check_access" do
 		it "records ownership on first access" do
 			body = body_class.new(["a", "b"])
-			trace_point = MockTracePoint.new(body, :read, Object, "test.rb", 1)
+			trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
 			
 			monitor.check_access(trace_point)
 			
@@ -46,7 +39,7 @@ describe Async::Safe::Monitor do
 		
 		it "allows same fiber to access again" do
 			body = body_class.new(["a", "b"])
-			trace_point = MockTracePoint.new(body, :read, Object, "test.rb", 1)
+			trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
 			
 			monitor.check_access(trace_point)
 			monitor.check_access(trace_point)
@@ -56,7 +49,7 @@ describe Async::Safe::Monitor do
 		
 		it "raises ViolationError when different fiber accesses object" do
 			body = body_class.new(["a", "b"])
-			trace_point = MockTracePoint.new(body, :read, Object, "test.rb", 1)
+			trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
 			
 			# First access from main fiber
 			monitor.check_access(trace_point)
@@ -96,12 +89,11 @@ describe Async::Safe::Monitor do
 		
 		it "allows access to objects with ASYNC_SAFE constant" do
 			safe_class = Class.new do
-				async_safe!
-				
 				def read
 					"data"
 				end
 			end
+			safe_class.async_safe!
 			
 			instance = safe_class.new
 			trace_point = MockTracePoint.new(instance, :read, safe_class, "test.rb", 1)
@@ -121,12 +113,15 @@ describe Async::Safe::Monitor do
 			expect(monitor.owners[instance]).to be == nil
 		end
 		
-		it "allows access to methods marked async_safe" do
+		it "allows access to methods marked async_safe via hash" do
 			mixed_class = Class.new do
-				include Async::Safe
-				async_safe :safe_read
+				const_set(:ASYNC_SAFE, {safe_read: true, unsafe_write: false}.freeze)
 				
 				def safe_read
+					"data"
+				end
+				
+				def unsafe_write
 					"data"
 				end
 			end
