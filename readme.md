@@ -30,7 +30,6 @@ Please see the [project releases](https://socketry.github.io/async-safe/releases
   - Added `Class#async_safe?(method)` method for querying safety.
   - Removed logger feature: always raises `ViolationError` exceptions.
   - Removed `Async::Safe::Concurrent` module: use `async_safe!` instead.
-  - Removed `reset!` method: use `disable!` + `enable!` instead.
 
 ### v0.2.0
 
