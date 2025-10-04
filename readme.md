@@ -22,6 +22,16 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
 Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
 
+### v0.3.0
+
+  - Inverted default model: classes are async-safe by default, use `ASYNC_SAFE = false` to enable tracking.
+  - Added flexible `ASYNC_SAFE` constant support: boolean, hash, or array configurations.
+  - Added `Class#async_safe!` method for marking classes.
+  - Added `Class#async_safe?(method)` method for querying safety.
+  - Removed logger feature: always raises `ViolationError` exceptions.
+  - Removed `Async::Safe::Concurrent` module: use `async_safe!` instead.
+  - Removed `reset!` method: use `disable!` + `enable!` instead.
+
 ### v0.2.0
 
   - `Thread::Queue` transfers ownership of objects popped from it.

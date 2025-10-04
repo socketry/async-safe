@@ -25,12 +25,14 @@ Async::Safe.enable!
 
 When a violation is detected, an `Async::Safe::ViolationError` will be raised immediately with details about the object, method, and execution contexts involved.
 
-### Single-Owner Model
+### Single-Owner Model (Opt-In)
 
-By default, all objects are assumed to follow a **single-owner model** - they should only be accessed from one fiber/thread at a time:
+By default, all classes are assumed to be async-safe. To enable tracking for specific classes, mark them with `ASYNC_SAFE = false`:
 
 ~~~ ruby
 class MyBody
+  ASYNC_SAFE = false  # Enable tracking for this class
+  
   def initialize(chunks)
     @chunks = chunks
     @index = 0
@@ -90,15 +92,29 @@ class MyQueue
 end
 ~~~
 
-### Marking Async-Safe Methods
+Or use a hash for per-method configuration:
 
-Mark specific methods as async-safe:
+~~~ ruby
+class MixedClass
+  ASYNC_SAFE = {
+    read: true,    # This method is async-safe
+    write: false   # This method is NOT async-safe
+  }.freeze
+  
+  # ... implementation
+end
+~~~
+
+### Marking Methods with Hash
+
+Use a hash to specify which methods are async-safe:
 
 ~~~ ruby
 class MixedSafety
-  include Async::Safe
-  
-  async_safe :safe_read
+  ASYNC_SAFE = {
+    safe_read: true,   # This method is async-safe
+    increment: false   # This method is NOT async-safe
+  }.freeze
   
   def initialize(data)
     @data = data
@@ -110,7 +126,7 @@ class MixedSafety
   end
   
   def increment
-    @count += 1  # Not async-safe
+    @count += 1  # Not async-safe - will be tracked
   end
 end
 
@@ -119,6 +135,17 @@ obj = MixedSafety.new("data")
 Fiber.schedule do
   obj.safe_read  # ✅ OK - method is marked async-safe
   obj.increment  # 💥 Raises Async::Safe::ViolationError!
+end
+~~~
+
+Or use an array to list async-safe methods:
+
+~~~ ruby
+class MyClass
+  ASYNC_SAFE = [:read, :inspect].freeze
+  
+  # read and inspect are async-safe
+  # all other methods will be tracked
 end
 ~~~
 
