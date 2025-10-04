@@ -25,7 +25,7 @@ Async::Safe.enable!
 
 When a violation is detected, an `Async::Safe::ViolationError` will be raised immediately with details about the object, method, and execution contexts involved.
 
-### Single-Owner Model (Opt-In)
+### Single-Owner Model
 
 By default, all classes are assumed to be async-safe. To enable tracking for specific classes, mark them with `ASYNC_SAFE = false`:
 
@@ -180,6 +180,145 @@ $ bundle exec sus
 ~~~
 
 Any thread safety violations will cause your tests to fail immediately with a clear error message showing which object was accessed incorrectly and from which fibers.
+
+## Determining Async Safety
+
+When deciding whether to mark a class or method with `ASYNC_SAFE = false`, consider these factors:
+
+### Async-Safe Patterns
+
+**Immutable objects:**
+~~~ ruby
+class ImmutableUser
+  def initialize(name, email)
+    @name = name.freeze
+    @email = email.freeze
+    freeze  # Entire object is frozen
+  end
+  
+  attr_reader :name, :email
+end
+~~~
+
+**Pure functions (no state modification):**
+~~~ ruby
+class Calculator
+  def add(a, b)
+    a + b  # No instance state, pure computation
+  end
+end
+~~~
+
+**Thread-safe synchronization:**
+~~~ ruby
+class SafeQueue
+  ASYNC_SAFE = true  # Explicitly marked
+  
+  def initialize
+    @queue = Thread::Queue.new  # Thread-safe internally
+  end
+  
+  def push(item)
+    @queue.push(item)  # Delegates to thread-safe queue
+  end
+end
+~~~
+
+### Unsafe (Single-Owner) Patterns
+
+**Mutable instance state:**
+~~~ ruby
+class Counter
+  ASYNC_SAFE = false  # Enable tracking
+  
+  def initialize
+    @count = 0
+  end
+  
+  def increment
+    @count += 1  # Reads and writes @count (race condition!)
+  end
+end
+~~~
+
+**Stateful iteration:**
+~~~ ruby
+class Reader
+  ASYNC_SAFE = false  # Enable tracking
+  
+  def initialize(data)
+    @data = data
+    @index = 0
+  end
+  
+  def read
+    value = @data[@index]
+    @index += 1  # Mutates state
+    value
+  end
+end
+~~~
+
+**Lazy initialization:**
+~~~ ruby
+class DataLoader
+  ASYNC_SAFE = false  # Enable tracking
+  
+  def data
+    @data ||= load_data  # Not atomic! (race condition)
+  end
+end
+~~~
+
+### Mixed Safety
+
+Use hash or array configuration for classes with both safe and unsafe methods:
+
+~~~ ruby
+class MixedClass
+  ASYNC_SAFE = {
+    read_config: true,   # Safe: only reads frozen data
+    update_state: false  # Unsafe: modifies mutable state
+  }.freeze
+  
+  def initialize
+    @config = {setting: "value"}.freeze
+    @state = {count: 0}
+  end
+  
+  def read_config
+    @config[:setting]  # Safe: frozen hash
+  end
+  
+  def update_state
+    @state[:count] += 1  # Unsafe: mutates state
+  end
+end
+~~~
+
+### Quick Checklist
+
+Mark a method as unsafe (`ASYNC_SAFE = false`) if it:
+- ❌ Modifies instance variables.
+- ❌ Uses `||=` for lazy initialization.
+- ❌ Iterates with mutable state (like `@index`).
+- ❌ Reads then writes shared state.
+- ❌ Accesses mutable collections without synchronization.
+
+A method is likely safe if it:
+- ✅ Only reads from frozen/immutable data.
+- ✅ Has no instance state.
+- ✅ Uses only local variables.
+- ✅ Delegates to thread-safe primitives `Thread::Queue`, `Mutex`, etc.
+- ✅ The object itself is frozen.
+
+### When in Doubt
+
+If you're unsure whether a class is thread-safe:
+1. **Mark it as unsafe** (`ASYNC_SAFE = false`) - let the monitoring catch any issues.
+2. **Run your tests** with monitoring enabled.
+3. **If no violations occur** after thorough testing, it's likely safe.
+4. **Review the code** for the patterns above.
 
 ## How It Works
 
