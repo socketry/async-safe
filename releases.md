@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Better error message.
+
 ## v0.3.0
 
   - Inverted default model: classes are async-safe by default, use `ASYNC_SAFE = false` to enable tracking.

@@ -47,7 +47,7 @@ module Async
 			end
 			
 			private def build_message
-				"Thread safety violation detected! #{@target.inspect}##{@method} was accessed from #{@current.inspect} by #{@owner.inspect}."
+				"Thread safety violation detected!\n\tObject: #{@target.inspect}##{@method}\n\tOwner: #{@owner.inspect}\n\tAccessed by: #{@current.inspect}"
 			end
 		end
 		
