@@ -45,9 +45,32 @@ class Class
 	
 	# Mark the class as async-safe or not.
 	#
-	# @parameter value [Boolean] Whether the class is async-safe.
-	# @returns [Boolean] Whether the class is async-safe.
+	# @parameter value [Boolean | Hash | Array] Configuration for async-safety.
+	# @returns [Boolean | Hash | Array] The configured value.
 	def async_safe!(value = true)
 		self.const_set(:ASYNC_SAFE, value)
+	end
+	
+	# Define how to traverse this object's children during ownership transfer.
+	#
+	# This method is called by `Async::Safe.transfer` to recursively transfer
+	# ownership of contained objects. By default, only the object itself is transferred.
+	# Define this method to enable deep transfer for collection-like classes.
+	#
+	# @parameter instance [Object] The instance to traverse.
+	# @parameter block [Proc] Block to call for each child object that should be transferred.
+	#
+	# ~~~ ruby
+	# class MyContainer
+	#   async_safe!(false)
+	#   attr_reader :children
+	#   
+	#   def self.async_safe_traverse(instance, &block)
+	#     instance.children.each(&block)
+	#   end
+	# end
+	# ~~~
+	def async_safe_traverse(instance, &block)
+		# Default: no traversal (shallow transfer only)
 	end
 end

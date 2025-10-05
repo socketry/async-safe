@@ -87,14 +87,52 @@ module Async
 			
 			# Explicitly transfer ownership of objects to the current fiber.
 			#
+			# Also recursively transfers ownership of any tracked instance variables and
+			# objects contained in collections (Array, Hash, Set).
+			#
 			# @parameter objects [Array(Object)] The objects to transfer.
 			def transfer(*objects)
+				current = Fiber.current
+				visited = Set.new
+				
+				# Traverse object graph (outside mutex to avoid deadlock):
+				objects.each do |object|
+					traverse_objects(object, visited)
+				end
+				
+				# Transfer all visited objects (convert to array to avoid triggering TracePoint in sync block):
+				objects_to_transfer = visited.to_a
+				
 				@mutex.synchronize do
-					current = Fiber.current
-					
-					objects.each do |object|
-						@owners[object] = current
+					objects_to_transfer.each do |object|
+						@owners[object] = current if @owners.key?(object)
 					end
+				end
+			end
+			
+			private
+			
+			# Traverse the object graph and collect all reachable objects.
+			#
+			# @parameter object [Object] The object to traverse.
+			# @parameter visited [Set] Set of visited objects (object references, not IDs).
+			def traverse_objects(object, visited)
+				# Avoid circular references:
+				return if visited.include?(object)
+				
+				# Skip objects that don't need traversing:
+				return if object.frozen? or object.is_a?(Module)
+				
+				# Skip async-safe (shareable) objects - they're not owned:
+				klass = object.class
+				return if klass.async_safe?(nil)
+				
+				# Mark as visited:
+				visited << object
+				
+				# Recurse through custom traversal:
+				klass.async_safe_traverse(object) do |element|
+					traverse_objects(element, visited)
 				end
 			end
 			
@@ -105,7 +143,7 @@ module Async
 				object = trace_point.self
 				
 				# Skip tracking class/module methods:
-				return if object.is_a?(Class) || object.is_a?(Module)
+				return if object.is_a?(Module)
 				
 				# Skip frozen objects:
 				return if object.frozen?

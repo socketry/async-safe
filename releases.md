@@ -1,17 +1,24 @@
 # Releases
 
+## Unreleased
+
+  - Improved `Async::Safe.transfer` to recursively transfer ownership of tracked instance variables.
+
 ## v0.3.2
 
   - Better error message.
 
 ## v0.3.0
 
-  - Inverted default model: classes are async-safe by default, use `ASYNC_SAFE = false` to enable tracking.
-  - Added flexible `ASYNC_SAFE` constant support: boolean, hash, or array configurations.
-  - Added `Class#async_safe!` method for marking classes.
-  - Added `Class#async_safe?(method)` method for querying safety.
-  - Removed logger feature: always raises `ViolationError` exceptions.
-  - Removed `Async::Safe::Concurrent` module: use `async_safe!` instead.
+- Inverted default model: classes are async-safe by default, use `ASYNC_SAFE = false` to enable tracking.
+- Added flexible `ASYNC_SAFE` constant support: boolean, hash, or array configurations.
+- Added `Class#async_safe!` method for marking classes.
+- Added `Class#async_safe?(method)` method for querying safety.
+- Added `Class.async_safe_traverse` for custom deep transfer traversal (opt-in).
+- Improved `Async::Safe.transfer` to use shallow transfer by default with opt-in deep traversal.
+- Mark built-in collections (`Array`, `Hash`, `Set`) as single-owner with deep traversal support.
+- Removed logger feature: always raises `ViolationError` exceptions.
+- Removed `Async::Safe::Concurrent` module: use `async_safe!` instead.
 
 ## v0.2.0
 

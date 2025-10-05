@@ -73,6 +73,33 @@ describe Async::Safe do
 		end.not.to raise_exception
 	end
 	
+	it "recursively transfers owned instance variables" do
+		inner_class = Class.new do
+			async_safe!(false)
+			def read; "data"; end
+		end
+		
+		outer_class = Class.new do
+			async_safe!(false)
+			attr_reader :inner
+			def initialize(inner); @inner = inner; end
+		end
+		
+		inner = inner_class.new
+		outer = outer_class.new(inner)
+		
+		# Both owned by main fiber:
+		inner.read
+		outer.inner
+		
+		Fiber.new do
+			Async::Safe.transfer(outer)
+			
+			# Both outer and inner should be transferred:
+			outer.inner.read
+		end.resume
+	end
+	
 	it "allows access after ownership transfer" do
 		body = body_class.new(["a", "b"])
 		body.read  # Main fiber owns it
