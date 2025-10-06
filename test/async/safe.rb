@@ -56,7 +56,7 @@ describe Async::Safe do
 	it "allows concurrent access to async-safe classes" do
 		queue_class = Class.new do
 			async_safe!
-
+			
 			def push(item)
 				@items ||= []
 				@items << item

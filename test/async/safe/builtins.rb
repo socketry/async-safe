@@ -341,7 +341,7 @@ describe "Async::Safe Builtins" do
 			
 			begin
 				Fiber.new do
-					5.times { values << queue.pop }
+					5.times {values << queue.pop}
 				end.resume
 			rescue Async::Safe::ViolationError
 				exception_raised = true

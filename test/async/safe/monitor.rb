@@ -25,7 +25,7 @@ describe Async::Safe::Monitor do
 		end
 	end
 	
-	let(:monitor) { Async::Safe::Monitor.new }
+	let(:monitor) {Async::Safe::Monitor.new}
 	
 	with "#check_access" do
 		it "records ownership on first access" do
