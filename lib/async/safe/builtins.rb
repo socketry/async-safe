@@ -12,6 +12,10 @@
 class Array
 	ASYNC_SAFE = false
 	
+	# Traverse array elements during ownership transfer.
+	#
+	# @parameter instance [Array] The array instance to traverse.
+	# @parameter block [Proc] Block to call for each element.
 	def self.async_safe_traverse(instance, &block)
 		instance.each(&block)
 	end
@@ -21,6 +25,10 @@ end
 class Hash
 	ASYNC_SAFE = false
 	
+	# Traverse hash keys and values during ownership transfer.
+	#
+	# @parameter instance [Hash] The hash instance to traverse.
+	# @parameter block [Proc] Block to call for each key and value.
 	def self.async_safe_traverse(instance, &block)
 		instance.each_key(&block)
 		instance.each_value(&block)
@@ -31,6 +39,10 @@ end
 class Set
 	ASYNC_SAFE = false
 	
+	# Traverse set elements during ownership transfer.
+	#
+	# @parameter instance [Set] The set instance to traverse.
+	# @parameter block [Proc] Block to call for each element.
 	def self.async_safe_traverse(instance, &block)
 		instance.each(&block)
 	end
