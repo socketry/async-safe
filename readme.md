@@ -22,6 +22,10 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
 Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
 
+### v0.4.0
+
+  - Improved `Async::Safe.transfer` to recursively transfer ownership of tracked instance variables.
+
 ### v0.3.2
 
   - Better error message.
@@ -32,6 +36,9 @@ Please see the [project releases](https://socketry.github.io/async-safe/releases
   - Added flexible `ASYNC_SAFE` constant support: boolean, hash, or array configurations.
   - Added `Class#async_safe!` method for marking classes.
   - Added `Class#async_safe?(method)` method for querying safety.
+  - Added `Class.async_safe_traverse` for custom deep transfer traversal (opt-in).
+  - Improved `Async::Safe.transfer` to use shallow transfer by default with opt-in deep traversal.
+  - Mark built-in collections (`Array`, `Hash`, `Set`) as single-owner with deep traversal support.
   - Removed logger feature: always raises `ViolationError` exceptions.
   - Removed `Async::Safe::Concurrent` module: use `async_safe!` instead.
 

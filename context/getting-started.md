@@ -163,6 +163,38 @@ Fiber.schedule do
 end
 ~~~
 
+### Deep Transfer with Traversal
+
+By default, `transfer` only transfers the object itself (shallow). For collections like `Array`, `Hash`, and `Set`, the gem automatically traverses and transfers contained objects:
+
+~~~ ruby
+bodies = [Body.new, Body.new]
+
+Async::Safe.transfer(bodies)  # Transfers array AND all bodies inside
+~~~
+
+Custom classes can define traversal behavior using `async_safe_traverse`:
+
+~~~ ruby
+class Request
+  async_safe!(false)
+  attr_accessor :body, :headers
+  
+  def self.async_safe_traverse(instance, &block)
+    yield instance.body
+    yield instance.headers
+  end
+end
+
+request = Request.new
+request.body = Body.new
+request.headers = Headers.new
+
+Async::Safe.transfer(request)  # Transfers request, body, AND headers.
+~~~
+
+**Note:** Shareable objects (`async_safe? -> true`) are never traversed or transferred, as they can be safely shared across fibers.
+
 ## Integration with Tests
 
 Add to your test helper (e.g., `config/sus.rb` or `spec/spec_helper.rb`):
