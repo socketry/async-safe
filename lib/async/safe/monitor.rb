@@ -6,6 +6,9 @@
 require "set"
 require "weakref"
 
+# Fiber-local variable to track when we're in a transfer operation:
+Fiber.attr_accessor :async_safe_transfer
+
 module Async
 	module Safe
 		# Raised when an object is accessed from a different fiber than the one that owns it.
@@ -95,18 +98,23 @@ module Async
 				current = Fiber.current
 				visited = Set.new
 				
-				# Traverse object graph (outside mutex to avoid deadlock):
-				objects.each do |object|
-					traverse_objects(object, visited)
-				end
+				# Disable tracking during traversal to avoid deadlock:
+				current.async_safe_transfer = true
 				
-				# Transfer all visited objects (convert to array to avoid triggering TracePoint in sync block):
-				objects_to_transfer = visited.to_a
-				
-				@mutex.synchronize do
-					objects_to_transfer.each do |object|
-						@owners[object] = current if @owners.key?(object)
+				begin
+					# Traverse object graph:
+					objects.each do |object|
+						traverse_objects(object, visited)
 					end
+					
+					# Transfer all visited objects:
+					@mutex.synchronize do
+						visited.each do |object|
+							@owners[object] = current if @owners.key?(object)
+						end
+					end
+				ensure
+					current.async_safe_transfer = false
 				end
 			end
 			
@@ -138,6 +146,9 @@ module Async
 			#
 			# @parameter trace_point [TracePoint] The trace point containing access information.
 			def check_access(trace_point)
+				# Skip if we're in a transfer operation:
+				return if Fiber.current.async_safe_transfer
+				
 				object = trace_point.self
 				
 				# Skip tracking class/module methods:
