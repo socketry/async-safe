@@ -196,5 +196,61 @@ describe Async::Safe do
 			expect(regular_class.async_safe?).to be == false
 		end
 	end
+	
+	with "collection transfer" do
+		it "transfers array contents" do
+			element_class = Class.new do
+				async_safe!(false)
+				def process; "done"; end
+			end
+			
+			elements = [element_class.new, element_class.new]
+			elements.each(&:process)
+			
+			Fiber.new do
+				Async::Safe.transfer(elements)
+				elements.each(&:process)
+			end.resume
+		end
+		
+		it "transfers hash keys and values" do
+			key_class = Class.new do
+				async_safe!(false)
+				def value; "key"; end
+			end
+			
+			value_class = Class.new do
+				async_safe!(false)
+				def process; "done"; end
+			end
+			
+			key = key_class.new
+			value = value_class.new
+			hash = {key => value}
+			
+			key.value
+			value.process
+			
+			Fiber.new do
+				Async::Safe.transfer(hash)
+				hash.each {|k, v| k.value; v.process}
+			end.resume
+		end
+		
+		it "transfers set elements" do
+			element_class = Class.new do
+				async_safe!(false)
+				def process; "done"; end
+			end
+			
+			set = Set.new([element_class.new, element_class.new])
+			set.each(&:process)
+			
+			Fiber.new do
+				Async::Safe.transfer(set)
+				set.each(&:process)
+			end.resume
+		end
+	end
 end
 
