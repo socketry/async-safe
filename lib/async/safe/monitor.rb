@@ -110,13 +110,11 @@ module Async
 				end
 			end
 			
-			private
-			
 			# Traverse the object graph and collect all reachable objects.
 			#
 			# @parameter object [Object] The object to traverse.
 			# @parameter visited [Set] Set of visited objects (object references, not IDs).
-			def traverse_objects(object, visited)
+			private def traverse_objects(object, visited)
 				# Avoid circular references:
 				return if visited.include?(object)
 				

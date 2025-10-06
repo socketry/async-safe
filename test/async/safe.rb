@@ -73,7 +73,7 @@ describe Async::Safe do
 		end.not.to raise_exception
 	end
 	
-	it "recursively transfers owned instance variables" do
+	it "recursively transfers with async_safe_traverse" do
 		inner_class = Class.new do
 			async_safe!(false)
 			def read; "data"; end
@@ -83,6 +83,10 @@ describe Async::Safe do
 			async_safe!(false)
 			attr_reader :inner
 			def initialize(inner); @inner = inner; end
+			
+			def self.async_safe_traverse(instance, &block)
+				yield instance.inner
+			end
 		end
 		
 		inner = inner_class.new
@@ -95,7 +99,7 @@ describe Async::Safe do
 		Fiber.new do
 			Async::Safe.transfer(outer)
 			
-			# Both outer and inner should be transferred:
+			# Both outer and inner should be transferred via traversal:
 			outer.inner.read
 		end.resume
 	end
