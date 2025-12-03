@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.5.1
 
   - Protect against missing guard in `check_return`.
   - Use `Kernel` instance methods to handle broken proxy objects directly.

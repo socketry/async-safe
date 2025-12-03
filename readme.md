@@ -22,6 +22,11 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
 Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
 
+### v0.5.1
+
+  - Protect against missing guard in `check_return`.
+  - Use `Kernel` instance methods to handle broken proxy objects directly.
+
 ### v0.5.0
 
   - More conservative tracking of objects using call/return for ownership transfer.
