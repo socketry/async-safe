@@ -16,6 +16,10 @@ module Async
 		# Uses TracePoint to track in-flight method calls and detect concurrent access.
 		class Monitor
 			ASYNC_SAFE = true
+
+			IS_A = Kernel.instance_method(:is_a?)
+			FROZEN = Kernel.instance_method(:frozen?)
+			CLASS = Kernel.instance_method(:class)
 			
 			# Initialize a new concurrency monitor.
 			def initialize
@@ -66,15 +70,15 @@ module Async
 				object = trace_point.self
 				
 				# Skip tracking class/module methods:
-				return if object.is_a?(Module)
+				return if IS_A.bind_call(object, Module)
 				
 				# Skip frozen objects:
-				return if object.frozen?
+				return if FROZEN.bind_call(object)
 				
 				method = trace_point.method_id
 				
 				# Check the object's actual class:
-				klass = object.class
+				klass = CLASS.bind_call(object)
 				
 				# Check if the class or method is marked as async-safe:
 				# Returns: true (skip), false (simple tracking), or Symbol (guard-based tracking)
@@ -140,15 +144,15 @@ module Async
 				object = trace_point.self
 				
 				# Skip tracking class/module methods:
-				return if object.is_a?(Module)
+				return if IS_A.bind_call(object, Module)
 				
 				# Skip frozen objects:
-				return if object.frozen?
+				return if FROZEN.bind_call(object)
 				
 				method = trace_point.method_id
 				
 				# Check the object's actual class:
-				klass = object.class
+				klass = CLASS.bind_call(object)
 				
 				# Check if the class or method is marked as async-safe:
 				safe = klass.async_safe?(method)
@@ -158,6 +162,9 @@ module Async
 				
 				@mutex.synchronize do
 					entry = @guards[object]
+					
+					# No guard held, nothing to release:
+					return unless entry
 					
 					if safe == false
 						# Simple tracking (single guard)

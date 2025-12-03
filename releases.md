@@ -1,5 +1,10 @@
 # Releases
 
+## Unreleased
+
+  - Protect against missing guard in `check_return`.
+  - Use `Kernel` instance methods to handle broken proxy objects directly.
+
 ## v0.5.0
 
   - More conservative tracking of objects using call/return for ownership transfer.
