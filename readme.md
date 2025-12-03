@@ -22,6 +22,11 @@ Please see the [project documentation](https://socketry.github.io/async-safe/) f
 
 Please see the [project releases](https://socketry.github.io/async-safe/releases/index) for all releases.
 
+### v0.5.0
+
+  - More conservative tracking of objects using call/return for ownership transfer.
+  - Introduced guard concept for splitting ownership within a single object, e.g. independently concurrent readable and writable parts of an object.
+
 ### v0.4.0
 
   - Improved `Async::Safe.transfer` to recursively transfer ownership of tracked instance variables.

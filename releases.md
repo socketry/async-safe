@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.5.0
 
   - More conservative tracking of objects using call/return for ownership transfer.
   - Introduced guard concept for splitting ownership within a single object, e.g. independently concurrent readable and writable parts of an object.
