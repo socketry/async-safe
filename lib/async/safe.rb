@@ -24,8 +24,11 @@ module Async
 			
 			# Enable thread safety monitoring.
 			#
-			# This activates a TracePoint that tracks object access across fibers and threads.
-			# There is no performance overhead when monitoring is disabled.
+			# This activates a TracePoint that detects concurrent access to objects across
+			# fibers and threads. There is no performance overhead when monitoring is disabled.
+			#
+			# Objects can move freely between fibers - only actual concurrent access (data races)
+			# is detected and reported.
 			def enable!
 				@monitor ||= Monitor.new
 				@monitor.enable!
@@ -37,23 +40,14 @@ module Async
 				@monitor = nil
 			end
 			
-			# Explicitly transfer ownership of objects to the current fiber.
+			# Transfer has no effect in concurrency monitoring mode.
 			#
-			# This allows an object to be safely passed between fibers.
+			# Objects can move freely between fibers. This method is kept for
+			# backward compatibility but does nothing.
 			#
-			# @parameter objects [Array(Object)] The objects to transfer ownership of.
-			#
-			# ~~~ ruby
-			# request = Request.new(...)
-			# 
-			# Fiber.schedule do
-			# 	# Transfer ownership of the request to this fiber:
-			# 	Async::Safe.transfer(request)
-			# 	process(request)
-			# end
-			# ~~~
+			# @parameter objects [Array(Object)] The objects to transfer (ignored).
 			def transfer(*objects)
-				@monitor&.transfer(*objects)
+				# No-op - objects can move freely between fibers
 			end
 		end
 	end

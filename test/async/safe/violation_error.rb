@@ -8,7 +8,7 @@ require "async/safe"
 describe Async::Safe::ViolationError do
 	it "can be serialized to JSON" do
 		owner_fiber = Fiber.current
-		current_fiber = Fiber.new {}.tap(&:resume)
+		current_fiber = Fiber.new{}.tap(&:resume)
 		
 		error = Async::Safe::ViolationError.new(
 			target: "test_object",

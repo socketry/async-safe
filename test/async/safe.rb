@@ -4,6 +4,7 @@
 # Copyright, 2025, by Samuel Williams.
 
 require "async/safe"
+require "async"
 
 MockTracePoint = Data.define(:self, :method_id, :defined_class, :path, :lineno)
 
@@ -33,15 +34,15 @@ describe Async::Safe do
 		subject.disable!
 	end
 	
-	it "can detect cross-fiber access" do
+	it "allows sequential cross-fiber access" do
 		body = body_class.new(["a", "b"])
 		body.read  # Main fiber
 		
 		expect do
 			Fiber.new do
-				body.read  # Different fiber - should raise
+				body.read  # Different fiber - OK, sequential access
 			end.resume
-		end.to raise_exception(Async::Safe::ViolationError)
+		end.not.to raise_exception
 	end
 	
 	it "allows access from same fiber" do
@@ -73,48 +74,18 @@ describe Async::Safe do
 		end.not.to raise_exception
 	end
 	
-	it "recursively transfers with async_safe_traverse" do
-		inner_class = Class.new do
-			async_safe!(false)
-			def read; "data"; end
-		end
-		
-		outer_class = Class.new do
-			async_safe!(false)
-			attr_reader :inner
-			def initialize(inner); @inner = inner; end
-			
-			def self.async_safe_traverse(instance, &block)
-				yield instance.inner
-			end
-		end
-		
-		inner = inner_class.new
-		outer = outer_class.new(inner)
-		
-		# Both owned by main fiber:
-		inner.read
-		outer.inner
-		
-		Fiber.new do
-			Async::Safe.transfer(outer)
-			
-			# Both outer and inner should be transferred via traversal:
-			outer.inner.read
-		end.resume
-	end
 	
-	it "allows access after ownership transfer" do
+	it "allows access after method completes" do
 		body = body_class.new(["a", "b"])
-		body.read  # Main fiber owns it
+		body.read  # Main fiber
 		
 		Fiber.new do
-			Async::Safe.transfer(body)  # Transfer ownership
-			body.read  # Should be OK now
+			# No transfer needed - sequential access is allowed
+			body.read  # Should be OK
 		end.resume
 	end
 	
-	it "detects violations on non-async-safe methods" do
+	it "allows sequential access to non-async-safe methods" do
 		mixed_class = Class.new do
 			async_safe!(safe_method: true)
 			
@@ -134,11 +105,9 @@ describe Async::Safe do
 		expect do
 			Fiber.new do
 				instance.safe_method  # Should be OK
-				instance.unsafe_method  # Should raise
+				instance.unsafe_method  # Should be OK (sequential)
 			end.resume
-		end.to raise_exception(Async::Safe::ViolationError) do |error|
-			expect(error.method).to be == :unsafe_method
-		end
+		end.not.to raise_exception
 	end
 	
 	with ".async_safe?" do
@@ -197,60 +166,90 @@ describe Async::Safe do
 		end
 	end
 	
-	with "collection transfer" do
-		it "transfers array contents" do
-			element_class = Class.new do
+	
+	with "concurrency detection" do
+		let(:counter_class) do
+			Class.new do
 				async_safe!(false)
-				def process; "done"; end
+				
+				def initialize
+					@count = 0
+				end
+				
+				def increment
+					@count += 1
+				end
+				
+				def value
+					@count
+				end
 			end
-			
-			elements = [element_class.new, element_class.new]
-			elements.each(&:process)
-			
-			Fiber.new do
-				Async::Safe.transfer(elements)
-				elements.each(&:process)
-			end.resume
 		end
 		
-		it "transfers hash keys and values" do
-			key_class = Class.new do
-				async_safe!(false)
-				def value; "key"; end
-			end
+		it "allows sequential cross-fiber access" do
+			counter = counter_class.new
+			counter.increment  # Main fiber
 			
-			value_class = Class.new do
-				async_safe!(false)
-				def process; "done"; end
-			end
-			
-			key = key_class.new
-			value = value_class.new
-			hash = {key => value}
-			
-			key.value
-			value.process
-			
-			Fiber.new do
-				Async::Safe.transfer(hash)
-				hash.each {|k, v| k.value; v.process}
-			end.resume
+			expect do
+				Fiber.new do
+					# No transfer needed - sequential access is allowed
+					counter.increment
+				end.resume
+			end.not.to raise_exception
 		end
 		
-		it "transfers set elements" do
-			element_class = Class.new do
+		it "detects actual concurrent access" do
+			# Create a class with a method that actually takes time
+			slow_class = Class.new do
 				async_safe!(false)
-				def process; "done"; end
+				
+				def initialize
+					@value = 0
+				end
+				
+				def slow_increment
+					# Simulate work that takes time
+					@value += 1
+					sleep 0.1  # Actual work happening inside the method
+					@value
+				end
+				
+				def fast_read
+					@value
+				end
 			end
 			
-			set = Set.new([element_class.new, element_class.new])
-			set.each(&:process)
+			object = slow_class.new
+			
+			expect do
+				Sync do |task|
+					# Start a long-running method:
+					task.async do
+						object.slow_increment  # Takes 0.1 seconds.
+					end
+					
+					# Try to access while first method is still running:
+					task.async do
+						sleep 0.05  # Wait for first task to start.
+						object.fast_read  # Concurrent access!
+					end.wait
+				end
+			end.to raise_exception(Async::Safe::ViolationError)
+		end
+		
+		it "allows access after previous fiber completes" do
+			counter = counter_class.new
+			counter.increment  # Main fiber: count = 1
 			
 			Fiber.new do
-				Async::Safe.transfer(set)
-				set.each(&:process)
+				counter.increment  # Auto-transfer: count = 2
+				counter.value
 			end.resume
+			
+			# Main fiber accesses again after other fiber is done
+			expect do
+				counter.value  # Should auto-transfer back, no concurrent access
+			end.not.to raise_exception
 		end
 	end
 end
-

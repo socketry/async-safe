@@ -11,10 +11,12 @@ Async::Safe.enable!
 
 puts "=== Basic Thread Safety Examples ===\n\n"
 
-# Example 1: Single-owner violation
+# Example 1: Sequential access across fibers
 puts "1. Single-owner object accessed from multiple fibers:"
 
 class MyBody
+	ASYNC_SAFE = false  # Enable tracking
+	
 	def initialize(chunks)
 		@chunks = chunks
 		@index = 0
@@ -30,13 +32,9 @@ end
 body = MyBody.new(["chunk1", "chunk2", "chunk3"])
 puts "Main fiber: #{body.read}"
 
-begin
-	Fiber.new do
-		puts "Other fiber: #{body.read}" # Violation!
-	end.resume
-rescue Async::Safe::ViolationError => e
-	puts "❌ Caught violation: #{e.message}"
-end
+Fiber.new do
+	puts "Other fiber: #{body.read}"  # ✅ OK - sequential access
+end.resume
 
 # Example 2: Async-safe class
 puts "\n2. Async-safe class (no violation):"
@@ -61,15 +59,14 @@ Fiber.new do
 	queue.push("item2")  # OK - class is thread-safe
 end.resume
 
-# Example 3: Ownership transfer
-puts "\n3. Ownership transfer:"
+# Example 3: Collections
+puts "\n3. Collections can be used across fibers:"
 
-body2 = MyBody.new(["x", "y", "z"])
-puts "Main fiber: #{body2.read}"
+items = ["a", "b", "c"]
+items.each{|x| puts "Main: #{x}"}
 
 Fiber.new do
-	Async::Safe.transfer(body2)  # Transfer ownership
-	puts "After transfer: #{body2.read}"  # OK now!
+	puts "Other fiber can access: #{items.first}"
 end.resume
 
 puts "\n✅ Example completed"

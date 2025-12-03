@@ -1,5 +1,10 @@
 # Releases
 
+## Unreleased
+
+  - More conservative tracking of objects using call/return for ownership transfer.
+  - Introduced guard concept for splitting ownership within a single object, e.g. independently concurrent readable and writable parts of an object.
+
 ## v0.4.0
 
   - Improved `Async::Safe.transfer` to recursively transfer ownership of tracked instance variables.

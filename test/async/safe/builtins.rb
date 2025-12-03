@@ -15,8 +15,8 @@ describe "Async::Safe Builtins" do
 		Async::Safe.disable!
 	end
 	
-	# Simple test to verify the transfer mechanism works
-	it "can manually transfer object ownership" do
+	# Simple test to verify sequential access works
+	it "allows sequential access across fibers" do
 		test_class = Class.new do
 			const_set(:ASYNC_SAFE, false)
 			
@@ -26,21 +26,15 @@ describe "Async::Safe Builtins" do
 		end
 		test_object = test_class.new
 		
-		# Use the object in main fiber to establish ownership
+		# Use the object in main fiber
 		test_object.process
 		
-		# Access from different fiber should raise error
+		# Sequential access from different fiber should work
 		expect do
 			Fiber.new do
 				test_object.process
 			end.resume
-		end.to raise_exception(Async::Safe::ViolationError)
-		
-		# But after manual transfer, it should work
-		Fiber.new do
-			Async::Safe.transfer(test_object)
-			test_object.process  # Should not raise
-		end.resume
+		end.not.to raise_exception
 	end
 	
 	with "Thread::Queue" do
@@ -94,7 +88,7 @@ describe "Async::Safe Builtins" do
 			expect(result).to be == test_object
 		end
 		
-		it "transfers ownership of objects via deq" do
+		it "allows objects dequeued to be used in different fibers" do
 			queue = Thread::Queue.new
 			
 			# Create an object that will be monitored
@@ -110,7 +104,7 @@ describe "Async::Safe Builtins" do
 			# Push it into the queue
 			queue.push(test_object)
 			
-			# Deq from different fiber - should transfer ownership
+			# Deq from different fiber - should work fine
 			result = nil
 			exception_raised = false
 			
@@ -129,7 +123,7 @@ describe "Async::Safe Builtins" do
 			expect(result).to be == test_object
 		end
 		
-		it "transfers ownership of objects via shift" do
+		it "allows objects shifted to be used in different fibers" do
 			queue = Thread::Queue.new
 			
 			# Create an object that will be monitored
@@ -145,7 +139,7 @@ describe "Async::Safe Builtins" do
 			# Push it into the queue
 			queue.push(test_object)
 			
-			# Shift from different fiber - should transfer ownership
+			# Shift from different fiber - should work fine
 			result = nil
 			exception_raised = false
 			
@@ -259,7 +253,7 @@ describe "Async::Safe Builtins" do
 			expect(result).to be == test_object
 		end
 		
-		it "transfers ownership with size limits" do
+		it "works with sized queues" do
 			queue = Thread::SizedQueue.new(1)  # Only allow 1 item
 			
 			# Create an object
@@ -341,7 +335,7 @@ describe "Async::Safe Builtins" do
 			
 			begin
 				Fiber.new do
-					5.times {values << queue.pop}
+					5.times{values << queue.pop}
 				end.resume
 			rescue Async::Safe::ViolationError
 				exception_raised = true

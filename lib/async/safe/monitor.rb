@@ -3,81 +3,42 @@
 # Released under the MIT License.
 # Copyright, 2025, by Samuel Williams.
 
-require "set"
-require "weakref"
-
-# Fiber-local variable to track when we're in a transfer operation:
-Fiber.attr_accessor :async_safe_transfer
+require_relative "violation_error"
 
 module Async
 	module Safe
-		# Raised when an object is accessed from a different fiber than the one that owns it.
-		class ViolationError < StandardError
-			# Initialize a new violation error.
-			#
-			# @parameter message [String | Nil] Optional custom message.
-			# @parameter target [Object] The object that was accessed.
-			# @parameter method [Symbol] The method that was called.
-			# @parameter owner [Fiber] The fiber that owns the object.
-			# @parameter current [Fiber] The fiber that attempted to access the object.
-			def initialize(message = nil, target:, method:, owner:, current:)
-				@target = target
-				@method = method
-				@owner = owner
-				@current = current
-				
-				super(message || build_message)
-			end
-			
-			attr_reader :object_class, :method, :owner, :current
-			
-			# Convert the violation error to a JSON-serializable hash.
-			#
-			# @returns [Hash] A hash representation of the violation.
-			def as_json
-				{
-					object_class: @object_class,
-					method: @method,
-					owner: {
-						name: @owner.inspect,
-						backtrace: @owner.backtrace,
-					},
-					current: {
-						name: @current.inspect,
-						backtrace: @current.backtrace,
-					},
-				}
-			end
-			
-			private def build_message
-				"Thread safety violation detected!\n\tObject: #{@target.inspect}##{@method}\n\tOwner: #{@owner.inspect}\n\tAccessed by: #{@current.inspect}"
-			end
-		end
-		
-		# The core monitoring implementation using TracePoint.
+		# Monitors for concurrent access to objects across fibers.
 		#
-		# This class tracks object ownership across fibers, detecting when an object
-		# is accessed from a different fiber than the one that originally created or
-		# accessed it.
+		# This monitor detects when multiple fibers try to execute methods on the same
+		# object simultaneously (actual data races). Sequential access across fibers is
+		# allowed - objects can be passed between fibers freely.
 		#
-		# The monitor uses a TracePoint on `:call` events to track all method calls,
-		# and maintains a registry of which fiber "owns" each object. Uses weak references
-		# to avoid preventing garbage collection of tracked objects.
+		# Uses TracePoint to track in-flight method calls and detect concurrent access.
 		class Monitor
 			ASYNC_SAFE = true
 			
-			# Initialize a new monitor instance.
+			# Initialize a new concurrency monitor.
 			def initialize
-				@owners = ObjectSpace::WeakMap.new
+				@guards = ObjectSpace::WeakMap.new  # Tracks {object => fiber} or {object => {guard => fiber}}
 				@mutex = Thread::Mutex.new
 				@trace_point = nil
 			end
 			
-			attr :owners
+			attr :guards
 			
 			# Enable the monitor by activating the TracePoint.
 			def enable!
-				@trace_point ||= TracePoint.trace(:call, &method(:check_access))
+				return if @trace_point
+				
+				@trace_point = TracePoint.new(:call, :return) do |tp|
+					if tp.event == :call
+						check_call(tp)
+					else
+						check_return(tp)
+					end
+				end
+				
+				@trace_point.enable
 			end
 			
 			# Disable the monitor by deactivating the TracePoint.
@@ -88,67 +49,20 @@ module Async
 				end
 			end
 			
-			# Explicitly transfer ownership of objects to the current fiber.
+			# Transfer has no effect in concurrency monitoring.
 			#
-			# Also recursively transfers ownership of any tracked instance variables and
-			# objects contained in collections (Array, Hash, Set).
+			# Objects can move freely between fibers. This method exists for
+			# backward compatibility but does nothing.
 			#
-			# @parameter objects [Array(Object)] The objects to transfer.
+			# @parameter objects [Array(Object)] The objects to transfer (ignored).
 			def transfer(*objects)
-				current = Fiber.current
-				visited = Set.new
-				
-				# Disable tracking during traversal to avoid deadlock:
-				current.async_safe_transfer = true
-				
-				begin
-					# Traverse object graph:
-					objects.each do |object|
-						traverse_objects(object, visited)
-					end
-					
-					# Transfer all visited objects:
-					@mutex.synchronize do
-						visited.each do |object|
-							@owners[object] = current if @owners.key?(object)
-						end
-					end
-				ensure
-					current.async_safe_transfer = false
-				end
+				# No-op - objects move freely between fibers
 			end
 			
-			# Traverse the object graph and collect all reachable objects.
+			# Check method call for concurrent access violations.
 			#
-			# @parameter object [Object] The object to traverse.
-			# @parameter visited [Set] Set of visited objects (object references, not IDs).
-			private def traverse_objects(object, visited)
-				# Avoid circular references:
-				return if visited.include?(object)
-				
-				# Skip objects that don't need traversing:
-				return if object.frozen? or object.is_a?(Module)
-				
-				# Skip async-safe (shareable) objects - they're not owned:
-				klass = object.class
-				return if klass.async_safe?(nil)
-				
-				# Mark as visited:
-				visited << object
-				
-				# Recurse through custom traversal:
-				klass.async_safe_traverse(object) do |element|
-					traverse_objects(element, visited)
-				end
-			end
-			
-			# Check if the current access is allowed or constitutes a violation.
-			#
-			# @parameter trace_point [TracePoint] The trace point containing access information.
-			def check_access(trace_point)
-				# Skip if we're in a transfer operation:
-				return if Fiber.current.async_safe_transfer
-				
+			# @parameter trace_point [TracePoint] The trace point containing call information.
+			private def check_call(trace_point)
 				object = trace_point.self
 				
 				# Skip tracking class/module methods:
@@ -158,33 +72,106 @@ module Async
 				return if object.frozen?
 				
 				method = trace_point.method_id
-				klass = trace_point.defined_class
 				
 				# Check the object's actual class:
 				klass = object.class
 				
 				# Check if the class or method is marked as async-safe:
-				if klass.async_safe?(method)
-					return
-				end
+				# Returns: true (skip), false (simple tracking), or Symbol (guard-based tracking)
+				safe = klass.async_safe?(method)
+				return if safe == true
 				
-				# Track ownership:
 				current = Fiber.current
 				
 				@mutex.synchronize do
-					if owner = @owners[object]
-						# Violation if accessed from different fiber:
-						if owner != current
-							raise ViolationError.new(
-								target: object,
-								method: method,
-								owner: owner,
-								current: current,
-							)
+					if safe == false
+						# Simple tracking (single guard)
+						if fiber = @guards[object]
+							if fiber != current && !fiber.is_a?(Hash)
+								# Concurrent access detected!
+								raise ViolationError.new(
+									"Concurrent access detected!",
+									target: object,
+									method: method,
+									owner: fiber,
+									current: current,
+								)
+							end
+						else
+							# Acquire the guard
+							@guards[object] = current
 						end
 					else
-						# First access - record owner:
-						@owners[object] = current
+						# Multi-guard tracking
+						guard = safe
+						
+						# Get or create the guards hash for this object
+						entry = @guards[object]
+						if entry.nil? || !entry.is_a?(Hash)
+							guards = @guards[object] = {}
+						else
+							guards = entry
+						end
+						
+						# Check if another fiber currently holds this guard
+						if fiber = guards[guard]
+							if fiber != current
+								# Concurrent access detected within the same guard!
+								raise ViolationError.new(
+									"Concurrent access detected (guard: #{guard})!",
+									target: object,
+									method: method,
+									owner: fiber,
+									current: current,
+								)
+							end
+						else
+							# Acquire this guard
+							guards[guard] = current
+						end
+					end
+				end
+			end
+			
+			# Check method return to release guard.
+			#
+			# @parameter trace_point [TracePoint] The trace point containing return information.
+			private def check_return(trace_point)
+				object = trace_point.self
+				
+				# Skip tracking class/module methods:
+				return if object.is_a?(Module)
+				
+				# Skip frozen objects:
+				return if object.frozen?
+				
+				method = trace_point.method_id
+				
+				# Check the object's actual class:
+				klass = object.class
+				
+				# Check if the class or method is marked as async-safe:
+				safe = klass.async_safe?(method)
+				return if safe == true
+				
+				current = Fiber.current
+				
+				@mutex.synchronize do
+					entry = @guards[object]
+					
+					if safe == false
+						# Simple tracking (single guard)
+						# Release if this fiber holds it
+						@guards.delete(object) if entry == current
+					else
+						# Multi-guard tracking
+						guard = safe
+						
+						if entry.is_a?(Hash)
+							entry.delete(guard) if entry[guard] == current
+							# Clean up empty guards hash
+							@guards.delete(object) if entry.empty?
+						end
 					end
 				end
 			end

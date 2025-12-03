@@ -8,90 +8,16 @@
 # Note: Immutable values (nil, true, false, integers, symbols, etc.) are already
 # handled by the frozen? check in the monitor and don't need to be listed here.
 
-# Arrays contain references to other objects that may need transfer:
+# Mark collections as not async-safe since they're typically mutable.
+# Objects can still move between fibers, but concurrent access is detected.
 class Array
 	ASYNC_SAFE = false
-	
-	# Traverse array elements during ownership transfer.
-	#
-	# @parameter instance [Array] The array instance to traverse.
-	# @parameter block [Proc] Block to call for each element.
-	def self.async_safe_traverse(instance, &block)
-		instance.each(&block)
-	end
 end
 
-# Hashes contain keys and values that may need transfer:
 class Hash
 	ASYNC_SAFE = false
-	
-	# Traverse hash keys and values during ownership transfer.
-	#
-	# @parameter instance [Hash] The hash instance to traverse.
-	# @parameter block [Proc] Block to call for each key and value.
-	def self.async_safe_traverse(instance, &block)
-		instance.each_key(&block)
-		instance.each_value(&block)
-	end
 end
 
-# Sets contain elements that may need transfer:
 class Set
 	ASYNC_SAFE = false
-	
-	# Traverse set elements during ownership transfer.
-	#
-	# @parameter instance [Set] The set instance to traverse.
-	# @parameter block [Proc] Block to call for each element.
-	def self.async_safe_traverse(instance, &block)
-		instance.each(&block)
-	end
 end
-
-module Async
-	module Safe
-		# Automatically transfers ownership of objects when they are removed from a Thread::Queue.
-		#
-		# When included in Thread::Queue or Thread::SizedQueue, this module wraps pop/deq/shift
-		# methods to automatically transfer ownership of the dequeued object to the fiber that
-		# dequeues it.
-		module TransferableThreadQueue
-			# Pop an object from the queue and transfer ownership to the current fiber.
-			#
-			# @parameter arguments [Array] Arguments passed to the original pop method.
-			# @returns [Object] The dequeued object with transferred ownership.
-			def pop(...)
-				object = super(...)
-				Async::Safe.transfer(object)
-				object
-			end
-			
-			# Dequeue an object from the queue and transfer ownership to the current fiber.
-			#
-			# Alias for {#pop}.
-			#
-			# @parameter arguments [Array] Arguments passed to the original deq method.
-			# @returns [Object] The dequeued object with transferred ownership.
-			def deq(...)
-				object = super(...)
-				Async::Safe.transfer(object)
-				object
-			end
-			
-			# Shift an object from the queue and transfer ownership to the current fiber.
-			#
-			# Alias for {#pop}.
-			#
-			# @parameter arguments [Array] Arguments passed to the original shift method.
-			# @returns [Object] The dequeued object with transferred ownership.
-			def shift(...)
-				object = super(...)
-				Async::Safe.transfer(object)
-				object
-			end
-		end
-	end
-end
-
-Thread::Queue.prepend(Async::Safe::TransferableThreadQueue)
-Thread::SizedQueue.prepend(Async::Safe::TransferableThreadQueue)
