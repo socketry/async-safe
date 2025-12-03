@@ -6,7 +6,6 @@
 require_relative "safe/version"
 require_relative "safe/class"
 require_relative "safe/monitor"
-require_relative "safe/builtins"
 
 # @namespace
 module Async
