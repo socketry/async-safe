@@ -23,14 +23,19 @@ module Async
 				super(message || build_message)
 			end
 			
-			attr_reader :object_class, :method, :owner, :current
+			attr_reader :target, :method, :owner, :current
+			
+			# The class of the object that was accessed.
+			def object_class
+				@target.class
+			end
 			
 			# Convert the violation error to a JSON-serializable hash.
 			#
 			# @returns [Hash] A hash representation of the violation.
 			def as_json
 				{
-					object_class: @object_class,
+					object_class: object_class,
 					method: @method,
 					owner: {
 						name: @owner.inspect,
@@ -49,4 +54,3 @@ module Async
 		end
 	end
 end
-

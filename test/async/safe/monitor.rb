@@ -185,6 +185,29 @@ describe Async::Safe::Monitor do
 			write_fiber.resume
 		end
 		
+		it "releases guard-based access when the method completes" do
+			stream_class = Class.new do
+				def self.async_safe?(method)
+					method == :read ? :readable : false
+				end
+				
+				const_set(:ASYNC_SAFE, false)
+				
+				def read
+					"reading"
+				end
+			end
+			
+			stream = stream_class.new
+			trace_point = MockTracePoint.new(stream, :read, stream_class, "test.rb", 1)
+			
+			monitor.send(:check_call, trace_point)
+			expect(monitor.guards[stream]).to be == {readable: Fiber.current}
+			
+			monitor.send(:check_return, trace_point)
+			expect(monitor.guards[stream]).to be == nil
+		end
+		
 		it "detects concurrent access within the same guard" do
 			stream_class = Class.new do
 				def self.async_safe?(method)
@@ -215,4 +238,3 @@ describe Async::Safe::Monitor do
 		end
 	end
 end
-
