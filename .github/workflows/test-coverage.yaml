@@ -20,6 +20,7 @@ jobs:
           - macos
         
         ruby:
+          - "3.2"
           - ruby
     
     steps:

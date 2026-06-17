@@ -16,7 +16,7 @@ module Async
 		# Uses TracePoint to track in-flight method calls and detect concurrent access.
 		class Monitor
 			ASYNC_SAFE = true
-
+			
 			IS_A = Kernel.instance_method(:is_a?)
 			FROZEN = Kernel.instance_method(:frozen?)
 			CLASS = Kernel.instance_method(:class)
@@ -169,7 +169,7 @@ module Async
 					if safe == false
 						# Simple tracking (single guard)
 						# Release if this fiber holds it
-						@guards.delete(object) if entry == current
+						clear_guard(object) if entry == current
 					else
 						# Multi-guard tracking
 						guard = safe
@@ -177,12 +177,22 @@ module Async
 						if entry.is_a?(Hash)
 							entry.delete(guard) if entry[guard] == current
 							# Clean up empty guards hash
-							@guards.delete(object) if entry.empty?
+							clear_guard(object) if entry.empty?
 						end
 					end
+				end
+			end
+			
+			if ObjectSpace::WeakMap.method_defined?(:delete)
+				private def clear_guard(object)
+					@guards.delete(object)
+				end
+			else
+				private def clear_guard(object)
+					# Ruby 3.2's ObjectSpace::WeakMap does not implement #delete.
+					@guards[object] = nil
 				end
 			end
 		end
 	end
 end
-
