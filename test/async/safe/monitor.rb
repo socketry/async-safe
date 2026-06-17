@@ -5,7 +5,23 @@
 
 require "async/safe"
 
-MockTracePoint = Data.define(:self, :method_id, :defined_class, :path, :lineno)
+class MockTracePoint
+	def initialize(object, method_id, defined_class, path, lineno, event = nil)
+		@self = object
+		@method_id = method_id
+		@defined_class = defined_class
+		@path = path
+		@lineno = lineno
+		@event = event
+	end
+	
+	attr :self
+	attr :method_id
+	attr :defined_class
+	attr :path
+	attr :lineno
+	attr :event
+end
 
 describe Async::Safe::Monitor do
 	let(:body_class) do
@@ -31,7 +47,7 @@ describe Async::Safe::Monitor do
 		body = body_class.new(["a", "b"])
 		trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
 		
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		
 		# Simple tracking (no guard symbols) - just stores the fiber
 		expect(monitor.guards[body]).to be == Fiber.current
@@ -41,8 +57,8 @@ describe Async::Safe::Monitor do
 		body = body_class.new(["a", "b"])
 		trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
 		
-		monitor.send(:check_call, trace_point)
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		
 		# Simple tracking (no guard symbols) - just stores the fiber
 		expect(monitor.guards[body]).to be == Fiber.current
@@ -53,21 +69,71 @@ describe Async::Safe::Monitor do
 		trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
 		
 		# First access from main fiber
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		expect(monitor.guards[body]).to be == Fiber.current
 		
 		# Complete the call (release guard)
-		monitor.send(:check_return, trace_point)
+		monitor.__send__(:check_return, trace_point)
 		
 		# Should be cleared now
 		expect(monitor.guards[body]).to be == nil
 		
 		# Second access from different fiber - should work (guard released)
 		Fiber.new do
-			monitor.send(:check_call, trace_point)
+			monitor.__send__(:check_call, trace_point)
 			expect(monitor.guards[body]).to be == Fiber.current
-			monitor.send(:check_return, trace_point)
+			monitor.__send__(:check_return, trace_point)
 		end.resume
+	end
+	
+	it "tracks access using real trace point events" do
+		tracked_class = Class.new do
+			const_set(:ASYNC_SAFE, false)
+			
+			def read
+				yield
+			end
+		end
+		
+		body = tracked_class.new
+		
+		monitor.enable!
+		
+		body.read do
+			expect(monitor.guards[body]).to be == Fiber.current
+		end
+		
+		expect(monitor.guards[body]).to be == nil
+	ensure
+		monitor.disable!
+	end
+	
+	it "dispatches explicit trace point event objects" do
+		body = body_class.new(["a", "b"])
+		call_trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1, :call)
+		return_trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1, :return)
+		
+		monitor.__send__(:check_trace_point, call_trace_point)
+		expect(monitor.guards[body]).to be == Fiber.current
+		
+		monitor.__send__(:check_trace_point, return_trace_point)
+		expect(monitor.guards[body]).to be == nil
+	end
+	
+	it "detects concurrent access for simple guards" do
+		body = body_class.new(["a", "b"])
+		trace_point = MockTracePoint.new(body, :read, body_class, "test.rb", 1)
+		
+		monitor.__send__(:check_call, trace_point)
+		
+		expect do
+			Fiber.new do
+				monitor.__send__(:check_call, trace_point)
+			end.resume
+		end.to raise_exception(Async::Safe::ViolationError) do |error|
+			expect(error.method).to be == :read
+			expect(error.target).to be == body
+		end
 	end
 	
 	it "skips Class objects" do
@@ -75,7 +141,7 @@ describe Async::Safe::Monitor do
 		trace_point = MockTracePoint.new(klass, :new, Class, "test.rb", 1)
 		
 		# Should return early and not track
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		
 		expect(monitor.guards[klass]).to be == nil
 	end
@@ -85,7 +151,7 @@ describe Async::Safe::Monitor do
 		trace_point = MockTracePoint.new(mod, :included, Module, "test.rb", 1)
 		
 		# Should return early and not track
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		
 		expect(monitor.guards[mod]).to be == nil
 	end
@@ -105,11 +171,11 @@ describe Async::Safe::Monitor do
 		expect(safe_class.const_get(:ASYNC_SAFE)).to be == true
 		
 		# First access
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		
 		# Different fiber should be OK
 		Fiber.new do
-			monitor.send(:check_call, trace_point)
+			monitor.__send__(:check_call, trace_point)
 		end.resume
 		
 		# Should not track at all
@@ -133,11 +199,11 @@ describe Async::Safe::Monitor do
 		trace_point = MockTracePoint.new(instance, :safe_read, mixed_class, "test.rb", 1)
 		
 		# First access
-		monitor.send(:check_call, trace_point)
+		monitor.__send__(:check_call, trace_point)
 		
 		# Different fiber should be OK for async_safe method
 		Fiber.new do
-			monitor.send(:check_call, trace_point)
+			monitor.__send__(:check_call, trace_point)
 		end.resume
 		
 		# Should not track for async_safe methods
@@ -173,12 +239,12 @@ describe Async::Safe::Monitor do
 			main_fiber = Fiber.current
 			
 			# Start a read operation (guard: :readable)
-			monitor.send(:check_call, read_tp)
+			monitor.__send__(:check_call, read_tp)
 			expect(monitor.guards[stream]).to be == {readable: main_fiber}
 			
 			# Concurrent write should work (guard: :writable)
 			write_fiber = Fiber.new do
-				monitor.send(:check_call, write_tp)
+				monitor.__send__(:check_call, write_tp)
 				# Both guards should be held, different fibers
 				expect(monitor.guards[stream]).to be == {readable: main_fiber, writable: Fiber.current}
 			end
@@ -201,10 +267,10 @@ describe Async::Safe::Monitor do
 			stream = stream_class.new
 			trace_point = MockTracePoint.new(stream, :read, stream_class, "test.rb", 1)
 			
-			monitor.send(:check_call, trace_point)
+			monitor.__send__(:check_call, trace_point)
 			expect(monitor.guards[stream]).to be == {readable: Fiber.current}
 			
-			monitor.send(:check_return, trace_point)
+			monitor.__send__(:check_return, trace_point)
 			expect(monitor.guards[stream]).to be == nil
 		end
 		
@@ -225,12 +291,12 @@ describe Async::Safe::Monitor do
 			read_tp = MockTracePoint.new(stream, :read, stream_class, "test.rb", 1)
 			
 			# Start a read operation (guard: :readable)
-			monitor.send(:check_call, read_tp)
+			monitor.__send__(:check_call, read_tp)
 			
 			# Concurrent read should fail (same guard: :readable)
 			expect do
 				Fiber.new do
-					monitor.send(:check_call, read_tp)
+					monitor.__send__(:check_call, read_tp)
 				end.resume
 			end.to raise_exception(Async::Safe::ViolationError) do |error|
 				expect(error.message).to include("guard: readable")

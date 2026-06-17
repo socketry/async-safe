@@ -34,13 +34,7 @@ module Async
 			def enable!
 				return if @trace_point
 				
-				@trace_point = TracePoint.new(:call, :return) do |tp|
-					if tp.event == :call
-						check_call(tp)
-					else
-						check_return(tp)
-					end
-				end
+				@trace_point = TracePoint.new(:call, :return, &method(:check_trace_point))
 				
 				@trace_point.enable
 			end
@@ -61,6 +55,17 @@ module Async
 			# @parameter objects [Array(Object)] The objects to transfer (ignored).
 			def transfer(*objects)
 				# No-op - objects move freely between fibers
+			end
+			
+			# Check a trace point event for guard acquisition or release.
+			#
+			# @parameter trace_point [TracePoint] The trace point containing event information.
+			private def check_trace_point(trace_point)
+				if trace_point.event == :call
+					check_call(trace_point)
+				else
+					check_return(trace_point)
+				end
 			end
 			
 			# Check method call for concurrent access violations.
