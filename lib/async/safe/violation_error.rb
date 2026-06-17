@@ -23,7 +23,17 @@ module Async
 				super(message || build_message)
 			end
 			
-			attr_reader :target, :method, :owner, :current
+			# @attribute [Object] The object that was accessed concurrently.
+			attr_reader :target
+			
+			# @attribute [Symbol] The method that was called concurrently.
+			attr_reader :method
+			
+			# @attribute [Fiber] The fiber that owns the object.
+			attr_reader :owner
+			
+			# @attribute [Fiber] The fiber that attempted concurrent access.
+			attr_reader :current
 			
 			# The class of the object that was accessed.
 			def object_class
